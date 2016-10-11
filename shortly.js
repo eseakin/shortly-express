@@ -3,6 +3,7 @@ var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var session = require('express-session');
+var bcrypt = require('bcrypt-nodejs');
 
 
 var db = require('./app/config');
@@ -110,22 +111,25 @@ app.post('/login', function(req, res) {
         res.redirect('/login');
         res.status(404);
       } else {
-        // console.log('model pw', model.get('password'), req.body.password);
-        if (req.body.password === model.get('password')) {
-          req.session.loggedIn = true;
-          console.log('success pw matches', req.session, req.session.loggedIn);
-          res.redirect('/');
-        } else {
-          console.log('fail pw no match');
-          res.redirect('/login');
-          res.status(403);
-        }
+        var hash = model.get('password');
+        bcrypt.compare(req.body.password, hash, function(err, match) {
+          if (err) {
+            throw err;
+          }
+
+          if (match) {
+            req.session.loggedIn = true;
+            console.log('success pw matches');
+            res.redirect('/');
+          } else {
+            console.log('fail pw no match');
+            res.redirect('/login');
+            res.status(403);
+          }
+        });
       }
     });
 });
-
-
-
 
 app.get('/signup', function(req, res) {
   res.render('signup');
@@ -140,9 +144,12 @@ app.post('/signup', function(req, res) {
         //username already exists
         res.redirect('/signup');
       } else {
-        Users.create(req.body).then(function(newUser) {
-          req.session.loggedIn = true;
-          res.status(201).redirect('/');
+        bcrypt.hash(req.body.password, null, null, function(err, hash) {
+          req.body.password = hash;
+          Users.create(req.body).then(function(newUser) {
+            req.session.loggedIn = true;
+            res.status(201).redirect('/');
+          });
         });
       }
     }); 
