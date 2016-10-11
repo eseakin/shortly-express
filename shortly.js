@@ -17,21 +17,22 @@ var app = express();
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 app.use(partials());
-app.use(session({secret: 'lola', resave: false, saveUninitialized: true, cookie: {}}));
+app.use(session({secret: 'lola', resave: false, saveUninitialized: true, loggedIn: false}));
 // Parse JSON (uniform resource locators)
 app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
-var loggedIn = true;
 
 app.get('/', function(req, res) {
 
 
-  if (loggedIn) {
+  if (req.session.loggedIn === true) {
+    console.log('logged in');
     res.render('index');
   } else {
+    console.log('not logged in, redirecting');
     res.redirect('login');
   }
 
@@ -40,7 +41,7 @@ app.get('/', function(req, res) {
 app.get('/create', 
 function(req, res) {
 
-  if (loggedIn) {
+  if (req.session.loggedIn === true) {
     res.render('index');
   } else {
     res.redirect('login');
@@ -90,31 +91,58 @@ function(req, res) {
 // Write your authentication routes here
 /************************************************************/
 
-// app.get('', function (req, res) {
-//   CHECK authentication
-// })
-
 app.get('/login', function(req, res) {
   res.render('login');
 });
 
 app.post('/login', function(req, res) {
-  res.render('login');
+  // res.render('login');
+
+  new User({username: req.body.username})
+    .fetch()
+    .then(function(model) {
+      if (!model) {
+        console.log('invalid username')
+        res.redirect('login');
+        res.status(404);
+      } else {
+        // console.log('model pw', model.get('password'), req.body.password);
+        if (req.body.password === model.get('password')) {
+          req.session.loggedIn = true;
+          console.log('success pw matches', req.session, req.session.loggedIn)
+          res.redirect('index');
+        } else {
+          console.log('fail pw no match')
+          res.redirect('login');
+          res.status(403);
+        }
+      }
+    });
 });
+
+
+
 
 app.get('/signup', function(req, res) {
   res.render('signup');
 });
 
 app.post('/signup', function(req, res) {
-  res.render('signup');
-  console.log(req.body);
-  Users.create(req.body).then(function(newUser) {
-    console.log(newUser.get('username'));
-    console.log(newUser.get('password'));
-    res.status(201).send(newUser);
-  });
-
+  // res.render('signup');
+  new User({username: req.body.username})
+    .fetch()
+    .then(function(model) {
+      if (model) {
+        //username already exists
+        res.redirect('signup');
+      } else {
+        Users.create(req.body).then(function(newUser) {
+          req.session.loggedIn = true;
+          res.set('location', '/')
+          res.status(201).redirect('index');
+        });
+      }
+    }); 
 });
 
 app.get('/logout', function(req, res) {
