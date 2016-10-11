@@ -109,12 +109,12 @@ app.get('/signup', function(req, res) {
 app.post('/signup', function(req, res) {
   res.render('signup');
   console.log(req.body);
-  var username = req.body.username;
-  var password = req.body.password;
-  var user = new User ({
-    username: username,
-    password: password
+  Users.create(req.body).then(function(newUser) {
+    console.log(newUser.get('username'));
+    console.log(newUser.get('password'));
+    res.status(201).send(newUser);
   });
+
 });
 
 app.get('/logout', function(req, res) {
