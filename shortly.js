@@ -33,7 +33,7 @@ app.get('/', function(req, res) {
     res.render('index');
   } else {
     console.log('not logged in, redirecting');
-    res.redirect('login');
+    res.redirect('/login');
   }
 
 });
@@ -44,15 +44,19 @@ function(req, res) {
   if (req.session.loggedIn === true) {
     res.render('index');
   } else {
-    res.redirect('login');
+    res.redirect('/login');
   }
 });
 
 app.get('/links', 
 function(req, res) {
-  Links.reset().fetch().then(function(links) {
-    res.status(200).send(links.models);
-  });
+  if (req.session.loggedIn === true) {
+    Links.reset().fetch().then(function(links) {
+      res.status(200).send(links.models);
+    });    
+  } else {
+    res.redirect('/login');
+  }
 });
 
 app.post('/links', 
@@ -102,18 +106,18 @@ app.post('/login', function(req, res) {
     .fetch()
     .then(function(model) {
       if (!model) {
-        console.log('invalid username')
-        res.redirect('login');
+        console.log('invalid username');
+        res.redirect('/login');
         res.status(404);
       } else {
         // console.log('model pw', model.get('password'), req.body.password);
         if (req.body.password === model.get('password')) {
           req.session.loggedIn = true;
-          console.log('success pw matches', req.session, req.session.loggedIn)
-          res.redirect('index');
+          console.log('success pw matches', req.session, req.session.loggedIn);
+          res.redirect('/');
         } else {
-          console.log('fail pw no match')
-          res.redirect('login');
+          console.log('fail pw no match');
+          res.redirect('/login');
           res.status(403);
         }
       }
@@ -134,12 +138,11 @@ app.post('/signup', function(req, res) {
     .then(function(model) {
       if (model) {
         //username already exists
-        res.redirect('signup');
+        res.redirect('/signup');
       } else {
         Users.create(req.body).then(function(newUser) {
           req.session.loggedIn = true;
-          res.set('location', '/')
-          res.status(201).redirect('index');
+          res.status(201).redirect('/');
         });
       }
     }); 
